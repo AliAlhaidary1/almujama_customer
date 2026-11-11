@@ -58,3 +58,9 @@ upload-keystore.jks
 # Secrets / local environment
 .env
 .env.*
+
+# Phase 2 — untracked signing/ops artifacts (kept locally, never committed)
+*.bak
+*.MARIB_BACKUP
+analyze.txt
+**/problems-report.html
