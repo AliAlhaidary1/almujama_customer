@@ -37,7 +37,8 @@ Future<void> main() async {
   // the app. Uses native google-services files when present, otherwise the
   // cached backend-provided options from the last successful run.
   try {
-    await PushNotifications.ensureInitialized();
+    await PushNotifications.ensureInitialized()
+        .timeout(const Duration(seconds: 10), onTimeout: () => false);
   } catch (_) {}
   Diag.log('main:firebase', '${swMain.elapsedMilliseconds}ms');
   runApp(const ProviderScope(child: BootstrapApp()));
@@ -97,7 +98,7 @@ class _BootstrapAppState extends State<BootstrapApp>
         firebaseSettings: fb is Map<String, dynamic>
             ? fb
             : (fb is Map ? Map<String, dynamic>.from(fb) : null),
-      );
+      ).timeout(const Duration(seconds: 10), onTimeout: () => false);
     } catch (_) {}
     Diag.log('start:pushInit', '${swPush.elapsedMilliseconds}ms');
     apiUrl.text = appController.apiUrl;
