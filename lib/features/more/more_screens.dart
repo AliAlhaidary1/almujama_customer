@@ -8,6 +8,7 @@ import '../../core/business_hours.dart';
 import '../../core/city_mode.dart';
 import '../../core/device_location.dart';
 import '../../core/json_util.dart';
+import '../../core/api/api_errors.dart';
 import '../../core/promo_price.dart';
 import '../../widgets/app_image.dart';
 import '../../widgets/brand_header.dart';
@@ -1956,11 +1957,16 @@ class _SearchScreenState extends State<SearchScreen> {
       await appController.addRecentSearch(q);
     } else if (local.isEmpty) {
       // Offline with nothing synchronized: keep the "not synced" state.
+      // A server-level "no products found" answer (status:0 without a
+      // classified transport error) is a search that ran and simply
+      // matched nothing — show the results-empty state, not a sync
+      // message.
+      final classified = result.classifiedError;
       setState(() {
         items = [];
         searched = true;
         loading = false;
-        _lastSearchOk = false;
+        _lastSearchOk = classified == null;
       });
     } else {
       setState(() => _lastSearchOk = false);
@@ -2103,7 +2109,22 @@ class _SearchScreenState extends State<SearchScreen> {
                     title: Text(J.str(item['name'])),
                     subtitle: Text(
                       money(
-                        item['price'] ?? item['final_price'],
+                        () {
+                          // Product-shaped rows carry price on the variant, not
+                          // at the top level — showing money(null) printed
+                          // "YER 0.00" on every match. Prefer the variant's
+                          // display price; fall back to min_price.
+                          final vlist = item['variants'];
+                          final variant = (vlist is List &&
+                                  vlist.isNotEmpty &&
+                                  vlist.first is Map)
+                              ? J.map(vlist.first as Map)
+                              : null;
+                          final vPrice =
+                              variant == null ? 0.0 : variantDisplayPrice(variant).finalPrice;
+                          if (vPrice > 0) return vPrice;
+                          return double.tryParse('${item['min_price']}') ?? 0;
+                        }(),
                         app.currency,
                         app.decimals,
                       ),
