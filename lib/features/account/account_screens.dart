@@ -3520,11 +3520,14 @@ class WalletSettingsHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = appController;
     final hasLimit = app.walletRefillLimit > 0;
+    // Whitespace-only settings must not paint a hollow card (a lone leading
+    // icon + invisible title): treat trimmed values as empty.
+    bool filled(String v) => v.trim().isNotEmpty;
     final hasBank =
-        app.walletBankName.isNotEmpty ||
-        app.walletAccountHolder.isNotEmpty ||
-        app.walletAccountNumber.isNotEmpty ||
-        app.walletTransferInstructions.isNotEmpty;
+        filled(app.walletBankName) ||
+        filled(app.walletAccountHolder) ||
+        filled(app.walletAccountNumber) ||
+        filled(app.walletTransferInstructions);
     final balance = app.user?['balance'] ?? 0;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
@@ -3571,17 +3574,17 @@ class WalletSettingsHeader extends StatelessWidget {
                 leading: const Icon(Icons.account_balance),
                 title: Text(
                   [
-                    if (app.walletBankName.isNotEmpty) app.walletBankName,
-                    if (app.walletAccountNumber.isNotEmpty)
-                      app.walletAccountNumber,
+                    if (filled(app.walletBankName)) app.walletBankName.trim(),
+                    if (filled(app.walletAccountNumber))
+                      app.walletAccountNumber.trim(),
                   ].join(' • '),
                 ),
                 subtitle: Text(
                   [
-                    if (app.walletAccountHolder.isNotEmpty)
-                      app.walletAccountHolder,
-                    if (app.walletTransferInstructions.isNotEmpty)
-                      app.walletTransferInstructions,
+                    if (filled(app.walletAccountHolder))
+                      app.walletAccountHolder.trim(),
+                    if (filled(app.walletTransferInstructions))
+                      app.walletTransferInstructions.trim(),
                   ].where((e) => e.isNotEmpty).join('\n'),
                 ),
               ),
