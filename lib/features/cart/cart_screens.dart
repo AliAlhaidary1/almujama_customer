@@ -985,6 +985,43 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final canPlace = app.canPlaceOrder();
     final sellerGroups = app.sellerGroups;
     final deliveryFees = app.deliveryFees;
+    // Compact-height windows (the 568dp landscape case from PH16-002): the
+    // place-order CTA stays pinned in a bottom bar so the primary action is
+    // always reachable without scrolling a long form. The CTA is not
+    // duplicated — it moves, and the list keeps the flow when the window is
+    // tall enough (≥590dp keeps the inline CTA).
+    final shortHeight = MediaQuery.of(context).size.height < 590;
+    // The place-order CTA is shared between the tall layout (end of the
+    // form) and the short-height bottom bar. Full-width there, Expanded here.
+    void placeOrder() {
+      if (address == null) {
+        context.push('/addresses');
+        return;
+      }
+      _placeOrder(
+        app,
+        items,
+        subTotal,
+        delivery,
+        finalTotal,
+        wallet,
+        address,
+      );
+    }
+
+    final ctaEnabled = !(placing ||
+        _staleCheckout ||
+        !canPlace.allowed ||
+        (app.minOrderAmount > 0 && subTotal < app.minOrderAmount));
+    final ctaChild = placing
+        ? const BusySpinner()
+        : Text(
+            address == null
+                ? app.t('add_address_first')
+                : _isGateway(method)
+                ? app.t('pay_via_gateway').replaceAll('{method}', method)
+                : app.t('place_order'),
+          );
 
     return Scaffold(
       appBar: AppBar(title: Text(app.t('checkout'))),
@@ -1072,26 +1109,45 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ListTile(
-                    dense: true,
-                    leading: const Icon(Icons.location_on_outlined),
-                    title: Text(
-                      app.t('delivery_address'),
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    trailing: TextButton.icon(
-                      onPressed: () async {
-                        await context.push('/addresses');
-                        if (!mounted) return;
-                        setState(() {});
-                        await _load();
-                      },
-                      icon: const Icon(Icons.add, size: 18),
-                      label: Text(
-                        app.addresses.isEmpty
-                            ? app.t('add_new_address')
-                            : app.t('add_another_address'),
-                      ),
+                  // Row, not ListTile: the Arabic trailing label
+                  // ("إضافة عنوان آخر") is intrinsically wide and overflows
+                  // a ListTile on 320–393dp screens (PH16-002-class
+                  // assertion: "trailing consumes the entire tile width").
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.location_on_outlined),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            app.t('delivery_address'),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Flexible(
+                          child: TextButton.icon(
+                            onPressed: () async {
+                              await context.push('/addresses');
+                              if (!mounted) return;
+                              setState(() {});
+                              await _load();
+                            },
+                            icon: const Icon(Icons.add, size: 18),
+                            label: Text(
+                              app.addresses.isEmpty
+                                  ? app.t('add_new_address')
+                                  : app.t('add_another_address'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   if (app.addresses.isEmpty)
@@ -1143,23 +1199,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 ),
                                 if (J.str(a['is_default']) == '1' ||
                                     J.i(a['is_default']) == 1)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: app.accentColor.withValues(
-                                        alpha: 0.12,
+                                  Flexible(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
                                       ),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(
-                                      app.t('default_address_badge'),
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: app.accentColor,
-                                        fontWeight: FontWeight.w700,
+                                      decoration: BoxDecoration(
+                                        color: app.accentColor.withValues(
+                                          alpha: 0.12,
+                                        ),
+                                        borderRadius:
+                                            BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        app.t('default_address_badge'),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: app.accentColor,
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -1773,43 +1834,71 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
               ),
             ),
-          FilledButton(
-            key: const ValueKey('checkout-place-order'),
-            onPressed:
-                placing ||
-                    _staleCheckout ||
-                    !canPlace.allowed ||
-                    (app.minOrderAmount > 0 && subTotal < app.minOrderAmount)
-                ? null
-                : () {
-                    if (address == null) {
-                      context.push('/addresses');
-                      return;
-                    }
-                    _placeOrder(
-                      app,
-                      items,
-                      subTotal,
-                      delivery,
-                      finalTotal,
-                      wallet,
-                      address,
-                    );
-                  },
-            child: placing
-                ? const BusySpinner()
-                : Text(
-                    address == null
-                        ? app.t('add_address_first')
-                        : _isGateway(method)
-                        ? app
-                              .t('pay_via_gateway')
-                              .replaceAll('{method}', method)
-                        : app.t('place_order'),
-                  ),
-          ),
+          if (!shortHeight)
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: FilledButton(
+                key: const ValueKey('checkout-place-order'),
+                onPressed: ctaEnabled ? placeOrder : null,
+                child: ctaChild,
+              ),
+            ),
         ],
       ),
+      bottomNavigationBar: shortHeight
+          ? SafeArea(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  border: const Border(
+                    top: BorderSide(color: Color(0x1F000000)),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            app.t('total'),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF6B7280),
+                            ),
+                          ),
+                          Text(
+                            money(finalTotal, app.currency, app.decimals),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      flex: 3,
+                      child: SizedBox(
+                        height: 48,
+                        child: FilledButton(
+                          key: const ValueKey('checkout-place-order'),
+                          onPressed: ctaEnabled ? placeOrder : null,
+                          child: ctaChild,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : null,
     );
   }
 
@@ -2162,12 +2251,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Text(label),
-          const Spacer(),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+          Flexible(
+            flex: 2,
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+              ),
             ),
           ),
         ],
