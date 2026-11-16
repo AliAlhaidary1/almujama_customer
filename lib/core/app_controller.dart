@@ -816,51 +816,13 @@ class AppController extends ChangeNotifier {
     try {
       // Every online stage gets its own timeout with an honest fallback so a
       // blackholed/hanging backend can never freeze the splash screen; the
-      // app falls back to the offline-first machinery below instead.
-      // Brand + session validation are independent: run together.
-      final brandFuture = BrandService(apiUrl).load(prefs: _prefs);
-      await Future.wait([
-        brandFuture.then((b) => brand = b),
-        validateSession(),
-      ]).timeout(const Duration(seconds: 12), onTimeout: () => <void>[]);
-      mark('brand+session');
-      // Parallel bootstrap: settings + cities are independent.
-      await Future.wait([reloadSettings(), loadCities()])
-          .timeout(const Duration(seconds: 12), onTimeout: () => <void>[]);
-      mark('settings+cities');
-      await resolveCity()
-          .timeout(const Duration(seconds: 12), onTimeout: () {});
-      // If still no city and we have cities available, select the first one
-      // so the app has a valid location even when starting offline without
-      // prior city data. This ensures API calls use valid coordinates.
-      if (city == null && cities.isNotEmpty) {
-        await selectCity(normalizeCity(cities.first));
-      }
-      mark('resolveCity');
-      // Shop + categories + hours are independent of each other.
-      await Future.wait([
-        loadShop(),
-        loadRootCategories(),
-        loadBusinessHours(),
-      ]).timeout(const Duration(seconds: 12), onTimeout: () => <void>[]);
-      mark('shop+cats+hours');
-      if (isLoggedIn) {
-        await Future.wait([loadAddresses(), refreshCart()])
-            .timeout(const Duration(seconds: 12), onTimeout: () => <void>[]);
-      }
-      mark('addr+cart');
-      await reconcileCheckoutSession()
-          .timeout(const Duration(seconds: 8), onTimeout: () {});
-      mark('checkout');
-      bootstrapped = true;
-      // Opportunistic best-effort catalog sync (never blocks startup, never
-      // throws, no-op while the cutover flag is off). Deferred a few seconds:
-      // a cold start already paints cached rows and fires its own network
-      // page loads — a full catalog walk competing for the radio/CPU in the
-      // first seconds is what made startup feel sluggish.
-      unawaited(
-        Future<void>.delayed(const Duration(seconds: 10), syncCatalogSoon),
-      );
+      // app falls back to the offline-first machinery below instead. An
+      // overall cap bounds the whole network section (5x12s + 8s stages used
+      // to mean a >60s splash) — cached content wins fast, online catches up.
+      await _runOnlineStages(mark)
+          .timeout(const Duration(seconds: 20), onTimeout: () {
+        mark('onlineStagesCap');
+      });
     } catch (error) {
       bootstrapError = '$error';
       bootstrapped = true;
@@ -877,6 +839,56 @@ class AppController extends ChangeNotifier {
     kickSyncDelayed(const Duration(seconds: 3));
     notifyListeners();
     mark('done');
+  }
+
+  /// The online portion of bootstrap, extracted so [bootstrap] can bound it
+  /// with an overall timeout. Every stage keeps its own honest fallback; this
+  /// method never throws (callers additionally guard with `.timeout`).
+  Future<void> _runOnlineStages(void Function(String) mark) async {
+    // Brand + session validation are independent: run together.
+    final brandFuture = BrandService(apiUrl).load(prefs: _prefs);
+    await Future.wait([
+      brandFuture.then((b) => brand = b),
+      validateSession(),
+    ]).timeout(const Duration(seconds: 12), onTimeout: () => <void>[]);
+    mark('brand+session');
+    // Parallel bootstrap: settings + cities are independent.
+    await Future.wait([reloadSettings(), loadCities()])
+        .timeout(const Duration(seconds: 12), onTimeout: () => <void>[]);
+    mark('settings+cities');
+    await resolveCity()
+        .timeout(const Duration(seconds: 12), onTimeout: () {});
+    // If still no city and we have cities available, select the first one
+    // so the app has a valid location even when starting offline without
+    // prior city data. This ensures API calls use valid coordinates.
+    if (city == null && cities.isNotEmpty) {
+      await selectCity(normalizeCity(cities.first));
+    }
+    mark('resolveCity');
+    // Shop + categories + hours are independent of each other.
+    await Future.wait([
+      loadShop(),
+      loadRootCategories(),
+      loadBusinessHours(),
+    ]).timeout(const Duration(seconds: 12), onTimeout: () => <void>[]);
+    mark('shop+cats+hours');
+    if (isLoggedIn) {
+      await Future.wait([loadAddresses(), refreshCart()])
+          .timeout(const Duration(seconds: 12), onTimeout: () => <void>[]);
+    }
+    mark('addr+cart');
+    await reconcileCheckoutSession()
+        .timeout(const Duration(seconds: 8), onTimeout: () {});
+    mark('checkout');
+    bootstrapped = true;
+    // Opportunistic best-effort catalog sync (never blocks startup, never
+    // throws, no-op while the cutover flag is off). Deferred a few seconds:
+    // a cold start already paints cached rows and fires its own network
+    // page loads — a full catalog walk competing for the radio/CPU in the
+    // first seconds is what made startup feel sluggish.
+    unawaited(
+      Future<void>.delayed(const Duration(seconds: 10), syncCatalogSoon),
+    );
   }
 
   /// Validates the stored session against the backend. Proven auth failures

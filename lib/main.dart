@@ -35,11 +35,14 @@ Future<void> main() async {
   } catch (_) {}
   // Best-effort Firebase init so background/terminated notifications can wake
   // the app. Uses native google-services files when present, otherwise the
-  // cached backend-provided options from the last successful run.
-  try {
-    await PushNotifications.ensureInitialized()
-        .timeout(const Duration(seconds: 10), onTimeout: () => false);
-  } catch (_) {}
+  // cached backend-provided options from the last successful run. Runs
+  // detached: an unreachable Google endpoint must never delay first frame.
+  // The timeout still bounds the background work.
+  unawaited(
+    PushNotifications.ensureInitialized()
+        .timeout(const Duration(seconds: 10), onTimeout: () => false)
+        .catchError((_) => false),
+  );
   Diag.log('main:firebase', '${swMain.elapsedMilliseconds}ms');
   runApp(const ProviderScope(child: BootstrapApp()));
   Diag.log('main:runApp', '${swMain.elapsedMilliseconds}ms');
@@ -89,18 +92,11 @@ class _BootstrapAppState extends State<BootstrapApp>
     final swBoot = Stopwatch()..start();
     await appController.bootstrap();
     Diag.log('start:bootstrap', '${swBoot.elapsedMilliseconds}ms');
-    // Real FCM token (backend settings.firebase -> Firebase -> fcm_token sync).
-    // Gracefully disabled when no Firebase config exists anywhere.
-    final swPush = Stopwatch()..start();
-    try {
-      final fb = appController.settings['firebase'];
-      await PushNotifications.init(
-        firebaseSettings: fb is Map<String, dynamic>
-            ? fb
-            : (fb is Map ? Map<String, dynamic>.from(fb) : null),
-      ).timeout(const Duration(seconds: 10), onTimeout: () => false);
-    } catch (_) {}
-    Diag.log('start:pushInit', '${swPush.elapsedMilliseconds}ms');
+    // Firebase/push init runs OFF the critical path: the UI builds and the
+    // splash lifts as soon as bootstrap finishes; token fetch and FCM
+    // handshake happen in the background with a bounded timeout. A blackholed
+    // Google endpoint can no longer hold the user at the splash screen.
+    unawaited(_initPushInBackground());
     apiUrl.text = appController.apiUrl;
     if (!mounted) return;
     final failed =
@@ -118,6 +114,22 @@ class _BootstrapAppState extends State<BootstrapApp>
     await splashMin;
     if (mounted) setState(() => _showSplash = false);
     Diag.log('start:splashHidden');
+  }
+
+  /// FCM setup off the first-frame path. Real token (backend
+  /// settings.firebase -> Firebase -> fcm_token sync); gracefully disabled
+  /// when no Firebase config exists anywhere. Never throws.
+  Future<void> _initPushInBackground() async {
+    final swPush = Stopwatch()..start();
+    try {
+      final fb = appController.settings['firebase'];
+      await PushNotifications.init(
+        firebaseSettings: fb is Map<String, dynamic>
+            ? fb
+            : (fb is Map ? Map<String, dynamic>.from(fb) : null),
+      ).timeout(const Duration(seconds: 10), onTimeout: () => false);
+    } catch (_) {}
+    Diag.log('start:pushInit', '${swPush.elapsedMilliseconds}ms');
   }
 
   @override
