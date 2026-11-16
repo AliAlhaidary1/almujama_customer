@@ -185,6 +185,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       '/notification': '/notifications',
       '/assistant': '/assistant',
     };
+    // Web parity: /profile/orders/<id> links (order detail) map to the
+    // flutter order route; an order-shaped notification deep-link must land
+    // on the order, not bounce back to /notifications.
+    if (raw.startsWith('/profile/orders/')) {
+      final id = raw.substring('/profile/orders/'.length).trim();
+      if (id.isNotEmpty) {
+        openAppLocation(context, '/orders/$id');
+      } else {
+        openAppLocation(context, '/orders');
+      }
+      return;
+    }
     if (map.containsKey(raw)) {
       openAppLocation(context, map[raw]!);
       return;
