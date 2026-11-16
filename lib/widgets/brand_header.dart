@@ -225,25 +225,31 @@ class _CartButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: app,
-      builder: (_, _) => IconButton(
-        onPressed: () => context.push('/cart'),
-        tooltip: app.t('cart'),
-        style: IconButton.styleFrom(
-          minimumSize: const Size(42, 42),
-          maximumSize: const Size(42, 42),
-          padding: EdgeInsets.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-        icon: Badge(
-          isLabelVisible: app.cartCount > 0,
-          label: Text(
-            '${app.cartCount}',
-            style: const TextStyle(fontSize: 10, color: Colors.white),
+      builder: (_, _) => Semantics(
+        button: true,
+        label: app.cartCount > 0
+            ? '${app.t('cart')} (${app.cartCount})'
+            : app.t('cart'),
+        child: IconButton(
+          onPressed: () => context.push('/cart'),
+          tooltip: app.t('cart'),
+          style: IconButton.styleFrom(
+            minimumSize: const Size(42, 42),
+            maximumSize: const Size(42, 42),
+            padding: EdgeInsets.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
-          child: const Icon(
-            Icons.shopping_cart_outlined,
-            color: AppTheme.backgroundWhite,
-            size: 22,
+          icon: Badge(
+            isLabelVisible: app.cartCount > 0,
+            label: Text(
+              '${app.cartCount}',
+              style: const TextStyle(fontSize: 10, color: Colors.white),
+            ),
+            child: const Icon(
+              Icons.shopping_cart_outlined,
+              color: AppTheme.backgroundWhite,
+              size: 22,
+            ),
           ),
         ),
       ),
@@ -270,20 +276,24 @@ class _AccountHeaderButton extends StatelessWidget {
         return SizedBox(
           width: 42,
           height: 42,
-          child: Tooltip(
-            message: app.t('my_account'),
-            child: Material(
-              color: Colors.transparent,
-              shape: const CircleBorder(),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: () => _AccountMenuSheet.show(context, app),
-                child: Center(
-                  child: _HeaderAvatar(
-                    name: name,
-                    profileImg: profileImg,
-                    loggedIn: app.isLoggedIn,
+          child: Semantics(
+            button: true,
+            label: app.t('my_account'),
+            child: Tooltip(
+              message: app.t('my_account'),
+              child: Material(
+                color: Colors.transparent,
+                shape: const CircleBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: () => _AccountMenuSheet.show(context, app),
+                  child: Center(
+                    child: _HeaderAvatar(
+                      name: name,
+                      profileImg: profileImg,
+                      loggedIn: app.isLoggedIn,
+                    ),
                   ),
                 ),
               ),

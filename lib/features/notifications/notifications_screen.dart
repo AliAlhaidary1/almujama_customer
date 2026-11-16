@@ -541,28 +541,34 @@ class _NotificationBellState extends State<NotificationBell>
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      onPressed: () async {
-        await context.push('/notifications');
-        _refresh();
-      },
-      tooltip: appController.t('notification'),
-      style: IconButton.styleFrom(
-        minimumSize: const Size(42, 42),
-        maximumSize: const Size(42, 42),
-        padding: EdgeInsets.zero,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
-      icon: Badge(
-        isLabelVisible: unread > 0,
-        label: Text(
-          unread > 99 ? '99+' : '$unread',
-          style: const TextStyle(fontSize: 10, color: Colors.white),
+    return Semantics(
+      button: true,
+      label: unread > 0
+          ? '${appController.t('notification')} ($unread)'
+          : appController.t('notification'),
+      child: IconButton(
+        onPressed: () async {
+          await context.push('/notifications');
+          _refresh();
+        },
+        tooltip: appController.t('notification'),
+        style: IconButton.styleFrom(
+          minimumSize: const Size(42, 42),
+          maximumSize: const Size(42, 42),
+          padding: EdgeInsets.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
-        child: const Icon(
-          Icons.notifications_outlined,
-          color: Colors.white,
-          size: 22,
+        icon: Badge(
+          isLabelVisible: unread > 0,
+          label: Text(
+            unread > 99 ? '99+' : '$unread',
+            style: const TextStyle(fontSize: 10, color: Colors.white),
+          ),
+          child: const Icon(
+            Icons.notifications_outlined,
+            color: Colors.white,
+            size: 22,
+          ),
         ),
       ),
     );
