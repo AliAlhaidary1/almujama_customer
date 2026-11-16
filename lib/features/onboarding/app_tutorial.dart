@@ -204,12 +204,17 @@ class _TutorialCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '$step / $total',
-            style: const TextStyle(
-              color: AppTheme.accentOrange,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
+          Directionality(
+            // Keep the "1 / 6" reading order stable inside RTL.
+            textDirection: TextDirection.ltr,
+            child: Text(
+              '$step / $total',
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                color: AppTheme.accentOrange,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
           const SizedBox(height: 8),

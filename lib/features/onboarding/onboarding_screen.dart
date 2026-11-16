@@ -127,12 +127,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               const SizedBox(height: 18),
               Row(
                 children: [
-                  Text(
-                    '${_index + 1} / ${_pages.length}',
+                  Directionality(
+                    // Keep the "1 / 3" reading order stable inside RTL.
+                    textDirection: TextDirection.ltr,
+                    child: Text(
+                      '${_index + 1} / ${_pages.length}',
                     style: const TextStyle(
                       color: AppTheme.textSecondary,
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   const Spacer(),
@@ -201,17 +205,26 @@ class _OnboardingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 480),
-                  child: AspectRatio(
+      builder: (context, constraints) {
+        // Bound the hero image to a fraction of the page height so the
+        // title + body never get clipped on compact windows (previously
+        // the body was cut mid-glyph and the fold swallowed it).
+        final imageMaxHeight =
+            (constraints.maxHeight * 0.52).clamp(180.0, 520.0);
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: 480,
+                      maxHeight: imageMaxHeight,
+                    ),
+                    child: AspectRatio(
                     aspectRatio: 1,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
@@ -277,7 +290,8 @@ class _OnboardingPage extends StatelessWidget {
             ],
           ),
         ),
-      ),
+        );
+      },
     );
   }
 }
