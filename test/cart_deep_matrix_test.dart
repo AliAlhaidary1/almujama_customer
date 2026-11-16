@@ -205,15 +205,6 @@ class _DeepApi extends CustomerApi {
       _ok({'message': 'logged_out'});
 }
 
-Map<String, dynamic> _row(int variantId, int qty) => {
-  'product_id': variantId,
-  'product_variant_id': variantId,
-  'qty': qty,
-  'price': 25,
-  'name': 'P$variantId',
-  'seller_id': 5,
-};
-
 List<String> _qtys() => appController.cartProducts
     .map((e) => '${e['product_variant_id']}=${e['qty'] ?? e['quantity']}')
     .toList()
@@ -346,7 +337,7 @@ void main() {
     });
 
     test('guest stepper subtotal follows guest-cart local total', () async {
-      final api = await _setup();
+      await _setup();
       // Switch to guest mode.
       appController.token = null;
       appController.user = null;
@@ -428,7 +419,7 @@ void main() {
     );
 
     test('server says no_product_found on delete: line chan larger truth still wins', () async {
-      final api = await _setup();
+      await _setup();
       // Deleting something never added: server says already gone,
       // local phantom must be drained and we must NOT crash.
       await appController.removeCartLine(productId: 99, variantId: 99);
@@ -479,7 +470,6 @@ void main() {
       api.online = false;
 
       // Meanwhile, simulate ANOTHER device clearing 11 from the server.
-      final prefs = await SharedPreferences.getInstance();
       // Toggle still clear, but wait — the fake clears the shared server.
       api.server.remove('11');
 

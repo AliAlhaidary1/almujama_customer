@@ -233,7 +233,7 @@ class _ProductVariantSheetState extends State<ProductVariantSheet> {
         // Silent success.
         setState(() => _optimistic.remove(key));
       }
-    } catch (e, st) {
+    } catch (e) {
       if (mySeq != _seq || !mounted) return;
       setState(() => _optimistic.remove(key));
       ScaffoldMessenger.of(context).showSnackBar(

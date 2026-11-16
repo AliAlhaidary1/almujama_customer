@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sareemart_customer/core/api/customer_api.dart';
-import 'package:sareemart_customer/core/api/api_errors.dart';
 import 'package:sareemart_customer/core/app_controller.dart';
 import 'package:sareemart_customer/core/business_hours.dart';
 import 'package:sareemart_customer/core/json_util.dart';

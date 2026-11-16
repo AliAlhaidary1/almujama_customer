@@ -14,7 +14,7 @@ import 'package:sareemart_customer/widgets/product_variant_sheet.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  Map<String, dynamic> _product() => {
+  Map<String, dynamic> product() => {
         'id': 99,
         'name': 'طماطم بلدية',
         'store_name': 'سوق البلدية',
@@ -44,7 +44,7 @@ void main() {
         ],
       };
 
-  Future<void> _setup() async {
+  Future<void> setup() async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     appController.injectForTest(prefs: prefs, testApi: _OfflineFailingApi());
@@ -71,11 +71,11 @@ void main() {
   testWidgets(
     'offline add: enqueue succeeds and UI must not report network error',
     (tester) async {
-      await _setup();
+      await setup();
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: ProductVariantSheet(product: _product()),
+            body: ProductVariantSheet(product: product()),
           ),
         ),
       );
