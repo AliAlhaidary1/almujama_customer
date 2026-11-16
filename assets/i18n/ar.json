@@ -1265,5 +1265,6 @@
   "notif_push_marketing_subtitle": "أحدث العروض والخصومات من متاجرنا",
   "notif_push_transactional": "إشعارات طلباتي",
   "notif_push_transactional_subtitle": "حالة الطلبات والتوصيل والتسليم",
-  "notif_preferences_saved": "تم حفظ إعدادات الإشعارات"
+  "notif_preferences_saved": "تم حفظ إعدادات الإشعارات",
+  "delivery_discount_applied": "خصم توصيل مطبَّق"
 }

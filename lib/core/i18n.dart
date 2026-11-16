@@ -21,6 +21,7 @@ class I18n extends ChangeNotifier {
       'delivery_to_office': 'توصيل للمكتب',
       'delivery_to_shop': 'توصيل للمتجر',
       'delivery_to_other': 'توصيل لعنوان آخر',
+      'delivery_discount_applied': 'خصم توصيل مطبَّق',
     },
     'en': {
       'order_number': 'Order Number',
@@ -31,6 +32,7 @@ class I18n extends ChangeNotifier {
       'delivery_to_office': 'Office delivery',
       'delivery_to_shop': 'Shop delivery',
       'delivery_to_other': 'Delivery to another address',
+      'delivery_discount_applied': 'Delivery discount applied',
     },
   };
 

@@ -8,6 +8,7 @@ import '../../core/api/api_errors.dart';
 import '../../core/app_controller.dart';
 import '../../core/app_theme.dart';
 import '../../core/business_hours.dart';
+import '../../core/delivery_fee_label.dart';
 import '../../core/json_util.dart';
 import '../../core/offline/offline_cache.dart';
 import '../../core/promo_price.dart';
@@ -947,9 +948,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 app.multiSellerCheckout?.deliveryTotal ??
                 0),
     );
-    final freeDelivery =
-        J.str(deliveryNode is Map ? deliveryNode['is_free_delivery'] : null) ==
-        '1';
+    final deliveryNodeMap = deliveryNode is Map ? deliveryNode : null;
+    // is_free_delivery means "a free-delivery benefit applies" — not
+    // necessarily that the customer pays zero (a capped offer subsidizes
+    // only part of the trip). Only claim "free" when the fee is actually 0.
+    final freeDeliveryBenefit = J.flag(deliveryNodeMap?['is_free_delivery']);
+    final deliverySuffix = deliveryFeeSuffix(
+      fee: delivery,
+      isFreeDeliveryBenefit: freeDeliveryBenefit,
+      t: app.t,
+    );
     final discount = J.d(
       app.promoCode?['discount'] ?? checkout?['promo_discount'],
     );
@@ -1296,7 +1304,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     money(subTotal, app.currency, app.decimals),
                   ),
                   _row(
-                    '${app.t('delivery_charge')}${freeDelivery ? ' (${app.t('free_delivery')})' : ''}',
+                    '${app.t('delivery_charge')}$deliverySuffix',
                     money(delivery, app.currency, app.decimals),
                   ),
                   if (platformFee > 0)

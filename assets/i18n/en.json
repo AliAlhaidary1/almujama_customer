@@ -1316,5 +1316,6 @@
   "notif_push_marketing_subtitle": "Latest offers, discounts & campaigns",
   "notif_push_transactional": "My orders",
   "notif_push_transactional_subtitle": "Order status, delivery & pickup updates",
-  "notif_preferences_saved": "Notification preferences saved"
+  "notif_preferences_saved": "Notification preferences saved",
+  "delivery_discount_applied": "Delivery discount applied"
 }
