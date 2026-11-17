@@ -3265,6 +3265,11 @@ class AppController extends ChangeNotifier {
         m.contains('cart is empty') ||
         m.contains('empty cart') ||
         m.contains('cart empty') ||
+        m.contains('no_items_found') ||
+        // Backend's actual empty-cart phrasing (Ar + En keys), e.g.
+        // "لم يتم العثور على عناصر في عربة المستخدم" — without this, Arabic
+        // sessions kept phantom local lines forever.
+        m.contains('لم يتم العثور') ||
         m.contains('لا توجد عناصر') ||
         m.contains('لا توجد منتجات') ||
         m.contains('السلة فارغة') ||
@@ -3393,14 +3398,16 @@ class AppController extends ChangeNotifier {
           if (timeSlots.isEmpty) await loadTimeSlots();
           await loadCheckoutConfig();
         }
-      } else if (result.classifiedError == null &&
-          _isEmptyCartMessage(result.message)) {
-        // The server is REACHABLE and explicitly says the cart has no items.
-        // Any OTHER business status:0 (validation, temporary failure, unknown
-        // error) must not be treated as an empty cart — that wiped the user's
-        // lines and snapshot. A checkout read can also fail for delivery
-        // reasons, so only wipe local lines for the regular cart GET.
-        if (checkout == 0) {
+      } else {
+        Diag.log(
+          'cart:refresh',
+          'not-ok message="${result.message}" classified=${result.classifiedError?.category} '
+          'empty=${_isEmptyCartMessage(result.message)} checkout=$checkout',
+        );
+        if (result.classifiedError == null &&
+            _isEmptyCartMessage(result.message) &&
+            checkout == 0) {
+          // The server is REACHABLE and explicitly says the cart has no items.
           cart = {'cart': <dynamic>[], 'sub_total': 0};
           cartProducts = [];
           cartSubTotal = 0;
@@ -3412,16 +3419,13 @@ class AppController extends ChangeNotifier {
               OfflineCache.snapshotKey('cart::$accountScope'),
             );
           } catch (_) {}
-          // Report the reachable empty cart as success: the UI must show the
-          // empty state, not a misleading "connection failed" retry screen.
           notifyListeners();
           return ApiResult({
             'status': 1,
             'message': result.message,
             'data': {'cart': <dynamic>[], 'sub_total': 0},
           });
-        }
-      } else if (cartProducts.isEmpty) {
+        } else if (cartProducts.isEmpty) {
         // Request failed (transport/server error) with no live lines: restore
         // the last server-confirmed snapshot. Crucially, the tail
         // `_applyPendingCartSetQty` below (qty<=0 intents filter rows out)
@@ -3444,6 +3448,7 @@ class AppController extends ChangeNotifier {
             }
           }
         } catch (_) {}
+        }
       }
       if (checkout == 0) {
         final applied = _applyPendingCartSetQty(cartProducts);

@@ -784,6 +784,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         m.contains('cart is empty') ||
         m.contains('cart empty') ||
         m.contains('no_items_found') ||
+        // Backend's actual empty-cart phrasing (Ar + En keys) — without this,
+        // Arabic sessions never recognized a reachable empty cart and kept
+        // phantom local lines forever.
+        m.contains('لم يتم العثور') ||
         m.contains('لا توجد') ||
         m.contains('السلة فارغة') ||
         m.contains('سلة فارغة') ||
@@ -971,14 +975,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           app.user?['wallet'] ??
           app.settings['user_balance'],
     );
+    // PH16-009: derive the EFFECTIVE wallet state from the live balance.
+    // A draft-restored opt-in must never render the switch ON (or claim the
+    // deduction in the summary) while the server would apply 0 because the
+    // balance is already 0/stale. The raw intent ([walletUsed]) is kept for
+    // draft persistence; placement and every render use [walletActive], so
+    // UI, API, order record, wallet ledger and COD amount all agree.
+    final walletActive = walletUsed && wallet > 0;
     // Web parity: wallet deduction is always computed (even when it covers
     // everything), and the wallet card is always visible.
-    final walletDeduction = walletUsed
-        ? wallet.clamp(0.0, preWalletTotal)
-        : 0.0;
+    final walletDeduction =
+        walletActive ? wallet.clamp(0.0, preWalletTotal) : 0.0;
     var finalTotal = preWalletTotal - walletDeduction;
     final fullWalletCover =
-        walletUsed && preWalletTotal > 0 && walletDeduction >= preWalletTotal;
+        walletActive && preWalletTotal > 0 && walletDeduction >= preWalletTotal;
     if (fullWalletCover) method = 'Wallet';
     final codAllowed = J.flag(checkout?['cod_allowed'] ?? 1);
     final address = app.selectedAddress;
@@ -1005,6 +1015,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         delivery,
         finalTotal,
         wallet,
+        walletActive,
         address,
       );
     }
@@ -1378,7 +1389,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       app.t('discount'),
                       '- ${money(discount, app.currency, app.decimals)}',
                     ),
-                  if (walletUsed && walletDeduction > 0)
+                  if (walletActive && walletDeduction > 0)
                     _row(
                       app.t('walletBalance'),
                       '- ${money(walletDeduction, app.currency, app.decimals)}',
@@ -1396,9 +1407,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           const SizedBox(height: 12),
           // ── Wallet (web parity: ALWAYS visible, disabled when empty) ──
           Card(
-            color: walletUsed ? app.accentColor.withValues(alpha: 0.08) : null,
+            color: walletActive ? app.accentColor.withValues(alpha: 0.08) : null,
             child: SwitchListTile(
-              value: walletUsed,
+              value: walletActive,
               onChanged: wallet <= 0
                   ? null
                   : (v) => setState(() {
@@ -1423,7 +1434,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               subtitle: Text(
                 wallet <= 0
                     ? app.t('wallet_empty_hint')
-                    : (walletUsed
+                    : (walletActive
                           ? app.t('wallet_in_use')
                           : app.t('wallet_use_hint')),
                 style: const TextStyle(fontSize: 12),
@@ -1475,10 +1486,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         label: app.t('cash_on_delivery'),
                         value: 'COD',
                         group: method,
-                        enabled: !(walletUsed && finalTotal == 0),
+                        enabled: !(walletActive && finalTotal == 0),
                         onTap: (v) => setState(() => method = v),
                       ),
-                    if (_methodOn('wallet_payment_method') || walletUsed)
+                    if (_methodOn('wallet_payment_method') || walletActive)
                       _payTile(
                         app: app,
                         icon: Icons.account_balance_wallet_outlined,
@@ -1919,6 +1930,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     double delivery,
     double finalTotal,
     double wallet,
+    bool walletActive,
     Map<String, dynamic> address,
   ) async {
     if (placing) return;
@@ -1977,7 +1989,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (!mounted) return;
     // Stable session key: identical across retries of this logical order so
     // the backend can deduplicate. Fresh-timestamp-per-tap would not.
-    final payMethod = (walletUsed && finalTotal == 0) ? 'Wallet' : method;
+    final payMethod = (walletActive && finalTotal == 0) ? 'Wallet' : method;
     final fingerprint = app.checkoutFingerprint(
       addressId: address['id'],
       paymentMethod: payMethod,
@@ -2007,7 +2019,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final result = await app.api.checkout(
       addressId: address['id'],
       paymentMethod: payMethod,
-      useWallet: walletUsed,
+      useWallet: walletActive,
       promocodeId: app.promoCode?['id'] ?? app.promoCode?['promo_code_id'],
       deliveryTime: deliveryTime ?? 'N/A',
       orderNote: note.text.trim(),
